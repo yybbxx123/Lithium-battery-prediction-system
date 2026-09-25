@@ -3,171 +3,919 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>锂电池区间预测系统</title>
-  <link rel="stylesheet" href="css/theme.css" />
+  <title>睿芯鉴寿 — 锂电池智能健康管理与剩余寿命预测平台</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/dashboard.css" />
+  <link rel="stylesheet" href="css/components.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
-  <script src="js/app.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js" defer></script>
+  <script src="js/data.js" defer></script>
+  <script src="js/api.js" defer></script>
+  <script src="js/chart.js" defer></script>
+  <script src="js/battery.js" defer></script>
+  <script src="js/upload.js" defer></script>
+  <script src="js/prediction.js" defer></script>
+  <script src="js/anomaly.js" defer></script>
+  <script src="js/support.js" defer></script>
+  <script src="js/main.js" defer></script>
 </head>
 <body>
+  <div class="app">
 
-  <header class="navbar">
-    <div class="navbar-brand">
-      <span class="brand-mark" aria-hidden="true">电</span>
-      <div>
-        <div>锂电池区间预测系统</div>
-        <p class="brand-sub">CSV 输入 · 单次预测 · 上下界区间输出</p>
-      </div>
-    </div>
-    <div class="navbar-actions">
-      <button type="button" class="btn btn-outline" id="btn-sample">下载示例 CSV</button>
-      <button type="button" class="btn btn-outline" id="btn-export" disabled>导出预测结果</button>
-    </div>
-  </header>
-
-  <main class="container">
-
-    <!-- 流程说明 -->
-    <ol class="steps">
-      <li class="step active" data-step="1"><span class="step-num">1</span>上传 CSV</li>
-      <li class="step" data-step="2"><span class="step-num">2</span>单次预测</li>
-      <li class="step" data-step="3"><span class="step-num">3</span>查看区间结果</li>
-    </ol>
-
-    <div class="alert-box" id="alert-box">
-      请上传循环级电池数据 CSV。本系统不做实时硬件采集，每次点击「开始区间预测」仅执行一次离线推理。
-    </div>
-
-    <!-- ========== 1. 数据输入 ========== -->
-    <section class="card upload-section">
-      <h2 class="section-header">数据输入</h2>
-      <p class="section-desc">
-        支持本地 CSV 文件。建议包含列：
-        <code>cycle</code>（循环次数）、
-        <code>voltage</code>（电压）、
-        <code>temperature</code>（温度）、
-        <code>capacity</code>（容量，可选）、
-        <code>soh</code>（健康状态，可选，0–1 或百分比）。
-      </p>
-
-      <div class="upload-zone" id="upload-zone" tabindex="0" role="button" aria-label="选择或拖拽 CSV 文件">
-        <input type="file" id="csv-input" accept=".csv,text/csv" hidden />
-        <div class="upload-icon" aria-hidden="true">CSV</div>
-        <p class="upload-title">点击选择，或将 CSV 拖拽到此处</p>
-        <p class="upload-hint">单文件上传 · 仅用于本次离线预测</p>
-      </div>
-
-      <div class="file-meta" id="file-meta" hidden>
-        <div class="meta-item"><span class="k">文件名</span><span class="v" id="file-name">—</span></div>
-        <div class="meta-item"><span class="k">数据行数</span><span class="v" id="file-rows">—</span></div>
-        <div class="meta-item"><span class="k">识别列</span><span class="v" id="file-cols">—</span></div>
-        <div class="meta-item"><span class="k">状态</span><span class="v" id="file-status">未预测</span></div>
-      </div>
-
-      <div class="predict-bar">
-        <div class="field">
-          <label for="target-select">预测目标</label>
-          <select id="target-select">
-            <option value="soh">健康状态 SoH（%）</option>
-            <option value="capacity">放电容量（Ah）</option>
-          </select>
+    <!-- 左侧导航 -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-logo">BA</div>
+        <div class="brand-text">
+          <strong>BatteryAI</strong>
+          <span>智能健康管理平台</span>
         </div>
-        <div class="field">
-          <label for="horizon-select">向前预测步数</label>
-          <select id="horizon-select">
-            <option value="10">后续 10 个循环</option>
-            <option value="20" selected>后续 20 个循环</option>
-            <option value="30">后续 30 个循环</option>
-          </select>
+      </div>
+
+      <ul class="nav-list">
+        <li class="nav-section">概览</li>
+        <li>
+          <button type="button" class="nav-item active" data-view="dashboard">
+            <span class="nav-ico">⌂</span>首页
+          </button>
+        </li>
+
+        <li class="nav-section">电池与数据</li>
+        <li>
+          <button type="button" class="nav-item" data-view="batteries">
+            <span class="nav-ico">▣</span>我的电池
+          </button>
+        </li>
+        <li>
+          <button type="button" class="nav-item" data-view="upload">
+            <span class="nav-ico">↑</span>数据上传
+          </button>
+        </li>
+        <li>
+          <button type="button" class="nav-item" data-view="analysis">
+            <span class="nav-ico">▦</span>数据分析
+          </button>
+        </li>
+
+        <li class="nav-section">智能分析</li>
+        <li>
+          <button type="button" class="nav-item" data-view="prediction">
+            <span class="nav-ico">◎</span>AI预测
+          </button>
+        </li>
+        <li>
+          <button type="button" class="nav-item" data-view="anomaly">
+            <span class="nav-ico">⚠</span>异常监测
+          </button>
+        </li>
+        <li>
+          <button type="button" class="nav-item" data-view="reports">
+            <span class="nav-ico">☰</span>预测报告
+          </button>
+        </li>
+        <li>
+          <button type="button" class="nav-item" data-view="history">
+            <span class="nav-ico">◷</span>历史记录
+          </button>
+        </li>
+
+        <li class="nav-section">支持</li>
+        <li>
+          <button type="button" class="nav-item" data-view="knowledge">
+            <span class="nav-ico">\*/</span>知识中心
+          </button>
+        </li>
+        <li>
+          <button type="button" class="nav-item" data-view="assistant">
+            <span class="nav-ico">✦</span>AI电池助手
+          </button>
+        </li>
+      </ul>
+
+      <div class="sidebar-user">
+        <div class="avatar">杨</div>
+        <div class="user-meta">
+          <div class="name">杨博鑫</div>
+          <div class="role">个人账号</div>
         </div>
-        <div class="field">
-          <label for="level-select">区间置信水平（示意）</label>
-          <select id="level-select">
-            <option value="80">约 80% 区间</option>
-            <option value="90" selected>约 90% 区间</option>
-            <option value="95">约 95% 区间</option>
-          </select>
-        </div>
-        <button type="button" class="btn btn-primary btn-lg" id="btn-predict" disabled>
-          开始区间预测
-        </button>
+        <button type="button" class="btn-icon" title="设置" id="btn-settings">⚙</button>
       </div>
-    </section>
+    </aside>
 
-    <!-- ========== 2. 数据预览 ========== -->
-    <section class="card" id="preview-section" hidden>
-      <h2 class="section-header">数据预览</h2>
-      <p class="section-desc">仅展示前 8 行，确认列名与数值无误后再预测。</p>
-      <div class="table-wrap">
-        <table class="data-table" id="preview-table">
-          <thead></thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </section>
-
-    <!-- ========== 3. 区间预测结果 ========== -->
-    <section class="card" id="result-section" hidden>
-      <h2 class="section-header">区间预测结果</h2>
-      <p class="section-desc">
-        输出为<strong>预测区间</strong>：下界、中心估计、上界。阴影带表示可能取值范围，而非单一确定值。
-      </p>
-
-      <div class="grid-3">
-        <article class="card result-card lower">
-          <div class="card-title">预测下界</div>
-          <div class="card-value" id="bound-lower">--</div>
-          <div class="card-hint" id="bound-lower-hint">区间下限</div>
-        </article>
-        <article class="card result-card mid">
-          <div class="card-title">中心估计</div>
-          <div class="card-value teal" id="bound-mid">--</div>
-          <div class="card-hint" id="bound-mid-hint">区间中心值</div>
-        </article>
-        <article class="card result-card upper">
-          <div class="card-title">预测上界</div>
-          <div class="card-value" id="bound-upper">--</div>
-          <div class="card-hint" id="bound-upper-hint">区间上限</div>
-        </article>
-      </div>
-
-      <div class="grid-2" style="margin-top:4px;">
-        <article class="card flat">
-          <div class="card-title">历史观测 + 未来区间预测</div>
-          <div class="chart-box tall"><canvas id="chart-interval" height="220"></canvas></div>
-        </article>
-        <article class="card flat">
-          <div class="card-title">本轮预测摘要</div>
-          <ul class="summary-list" id="summary-list">
-            <li>等待预测……</li>
-          </ul>
-          <div class="ai-box compact">
-            <h3>结果说明</h3>
-            <p id="result-note">区间宽度反映不确定性：历史噪声更大或预测越远，上下界通常越宽。</p>
+    <!-- 主内容 -->
+    <div class="main">
+      <header class="topbar">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <button type="button" class="btn btn-outline menu-toggle" id="menu-toggle" aria-label="打开菜单">菜单</button>
+          <div class="page-title">
+            <h1 id="page-heading">首页</h1>
+            <p id="page-sub">查看当前电池的整体健康状态</p>
           </div>
-        </article>
+        </div>
+        <div class="topbar-right">
+          <span class="date-chip" id="today-date">—</span>
+        </div>
+      </header>
+
+      <div class="content">
+
+        <!-- ========== 阶段1：Dashboard ========== -->
+        <section class="view active" id="view-dashboard" data-title="首页" data-sub="欢迎回来，查看你的电池健康状态">
+
+          <div class="welcome-row">
+            <div class="welcome-text">
+              <div class="greet" id="welcome-greet">上午好</div>
+              <div class="sub">欢迎回来，查看你的电池健康状态。当前关注：我的18650电池（LG MJ1）</div>
+            </div>
+          </div>
+
+          <!-- 四大核心卡 -->
+          <div class="kpi-grid">
+            <article class="kpi-card">
+              <div class="kpi-label">当前 SOH</div>
+              <div class="kpi-value teal" id="kpi-soh">87.3%</div>
+              <div class="kpi-meta">状态：<span class="tag ok">健康</span></div>
+            </article>
+            <article class="kpi-card">
+              <div class="kpi-label">预计 RUL（区间）</div>
+              <div class="kpi-value blue" id="kpi-rul">160–205</div>
+              <div class="kpi-meta">中心预测：<strong id="kpi-rul-mid">183</strong> cycles</div>
+              <div class="rul-track" aria-hidden="true">
+                <span class="rul-marker" id="kpi-rul-marker" style="left:51%"></span>
+              </div>
+              <div class="rul-ends"><span>160</span><span>205</span></div>
+            </article>
+            <article class="kpi-card">
+              <div class="kpi-label">当前循环次数</div>
+              <div class="kpi-value" id="kpi-cycle">426</div>
+              <div class="kpi-meta">cycles · 累计充放电</div>
+            </article>
+            <article class="kpi-card">
+              <div class="kpi-label">当前容量</div>
+              <div class="kpi-value amber" id="kpi-cap">2.18 Ah</div>
+              <div class="kpi-meta">标称 <span id="kpi-cap-nom">2.50 Ah</span></div>
+            </article>
+          </div>
+
+          <!-- 异常提醒 -->
+          <div class="alert-strip">
+            <div class="left">
+              <div class="ico">!</div>
+              <div>
+                <div class="title">异常提醒</div>
+                <div class="msg">检测到近期存在轻微容量波动，建议结合后续循环数据持续观察。</div>
+              </div>
+            </div>
+            <button type="button" class="btn btn-outline" data-goto="anomaly">查看详情</button>
+          </div>
+
+          <!-- 趋势图 + 健康状态 -->
+          <div class="dash-grid">
+            <div class="panel">
+              <div class="panel-head">
+                <h3>电池容量 / SOH 衰减趋势</h3>
+                <span class="hint">历史 · 预测 · 失效阈值 80%</span>
+              </div>
+              <div class="chart-wrap">
+                <canvas id="chart-dashboard-trend"></canvas>
+              </div>
+              <div class="legend-row">
+                <span><i class="legend-swatch hist"></i>历史 SOH</span>
+                <span><i class="legend-swatch pred"></i>未来预测（中心）</span>
+                <span><i class="legend-swatch eol"></i>失效阈值 80%</span>
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="panel-head">
+                <h3>健康状态</h3>
+                <span class="hint">综合评估</span>
+              </div>
+              <div class="health-score">
+                <div class="score" id="health-score">87.3</div>
+                <div class="status" id="health-status">正常</div>
+                <div class="desc" id="health-desc">
+                  当前电池整体处于正常衰减阶段。容量与循环关系稳定，剩余寿命以区间形式给出，便于风险决策。
+                </div>
+              </div>
+              <div class="health-bars">
+                <div class="hbar">
+                  <span>健康度</span>
+                  <div class="track"><div class="fill" style="width:87%"></div></div>
+                  <span>87%</span>
+                </div>
+                <div class="hbar">
+                  <span>稳定性</span>
+                  <div class="track"><div class="fill" style="width:78%"></div></div>
+                  <span>78%</span>
+                </div>
+                <div class="hbar">
+                  <span>数据质量</span>
+                  <div class="track"><div class="fill" style="width:92%"></div></div>
+                  <span>92%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 快捷操作 -->
+          <div class="panel">
+            <div class="panel-head">
+              <h3>快捷操作</h3>
+              <span class="hint">常用入口</span>
+            </div>
+            <div class="quick-actions">
+              <button type="button" class="btn btn-primary" data-goto="upload">上传新数据</button>
+              <button type="button" class="btn btn-teal" data-goto="prediction">开始预测</button>
+              <button type="button" class="btn btn-outline" data-goto="batteries">查看电池</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- 后续阶段占位（可导航，内容待实现） -->
+        <!-- ========== 阶段2：我的电池 ========== -->
+        <section class="view" id="view-batteries" data-title="我的电池" data-sub="管理你的电池设备与健康状态">
+          <div class="page-toolbar">
+            <div>
+              <h2 class="section-title">我的电池</h2>
+              <p class="section-desc">管理你的电池设备与健康状态。点击卡片进入健康档案。</p>
+            </div>
+            <button type="button" class="btn btn-primary" id="btn-add-battery">＋ 添加电池</button>
+          </div>
+          <div class="battery-grid" id="battery-grid"></div>
+        </section>
+
+        <!-- ========== 阶段2：电池详情 ========== -->
+        <section class="view" id="view-battery-detail" data-title="电池详情" data-sub="电池健康档案与区间预测摘要">
+          <div class="page-toolbar">
+            <div>
+              <button type="button" class="btn btn-ghost btn-sm" id="btn-back-batteries">← 返回我的电池</button>
+              <h2 class="section-title mt-8" id="detail-name">—</h2>
+              <p class="section-desc">
+                <span id="detail-model-line">—</span>
+                · 状态 <span class="tag ok" id="detail-status">正常</span>
+              </p>
+            </div>
+            <button type="button" class="btn btn-outline" id="btn-detail-set-active">设为首页关注</button>
+          </div>
+
+          <div class="grid-2 mb-16">
+            <div class="panel">
+              <div class="panel-head"><h3>基础信息</h3></div>
+              <dl class="info-list">
+                <div><dt>电池类型</dt><dd id="detail-type">—</dd></div>
+                <div><dt>标称容量</dt><dd id="detail-nominal">—</dd></div>
+                <div><dt>额定电压</dt><dd id="detail-voltage">—</dd></div>
+                <div><dt>当前容量</dt><dd id="detail-current-cap">—</dd></div>
+                <div><dt>累计循环次数</dt><dd id="detail-cycle">—</dd></div>
+                <div><dt>使用时间</dt><dd id="detail-usage">—</dd></div>
+              </dl>
+            </div>
+
+            <div class="panel soh-hero">
+              <div class="panel-head"><h3>健康状态 SOH</h3></div>
+              <div class="soh-big" id="detail-soh">—</div>
+              <div class="soh-sub">当前容量 / 初始容量</div>
+              <div class="soh-ratio" id="detail-soh-ratio">—</div>
+            </div>
+          </div>
+
+          <div class="panel mb-16">
+            <div class="panel-head">
+              <h3>剩余寿命 RUL（区间预测）</h3>
+              <span class="hint">下界 — 中心 — 上界</span>
+            </div>
+            <div class="rul-interval">
+              <div class="range-label">
+                <span id="detail-rul-lower">160</span>
+                <span>中心预测</span>
+                <span id="detail-rul-upper">205</span>
+              </div>
+              <div class="bar">
+                <span class="dot" id="detail-rul-dot" style="left:51%"></span>
+              </div>
+              <div class="center-label">● <span id="detail-rul-mid">183</span> cycles</div>
+              <div class="tri">
+                <div>
+                  <div class="k">预测下限</div>
+                  <div class="v" id="detail-rul-lower-v">—</div>
+                </div>
+                <div>
+                  <div class="k">中心预测</div>
+                  <div class="v" id="detail-rul-mid-v">—</div>
+                </div>
+                <div>
+                  <div class="k">预测上限</div>
+                  <div class="v" id="detail-rul-upper-v">—</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid-2">
+            <div class="panel">
+              <div class="panel-head">
+                <h3>健康趋势</h3>
+                <span class="hint">SOH 随 Cycle 变化</span>
+              </div>
+              <div class="chart-wrap">
+                <canvas id="chart-detail-trend"></canvas>
+              </div>
+              <div class="legend-row">
+                <span><i class="legend-swatch hist"></i>历史 SOH</span>
+                <span><i class="legend-swatch pred"></i>未来预测</span>
+                <span><i class="legend-swatch eol"></i>失效阈值 80%</span>
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="panel-head"><h3>最近一次预测</h3></div>
+              <dl class="info-list">
+                <div><dt>预测时间</dt><dd id="detail-pred-time">—</dd></div>
+                <div><dt>使用模型</dt><dd id="detail-pred-model">—</dd></div>
+                <div><dt>SOH</dt><dd id="detail-pred-soh">—</dd></div>
+                <div><dt>RUL 区间</dt><dd id="detail-pred-rul">—</dd></div>
+              </dl>
+              <div class="quick-actions mt-16">
+                <button type="button" class="btn btn-teal" data-goto="prediction">再次预测</button>
+                <button type="button" class="btn btn-outline" data-goto="upload">上传新数据</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 添加电池 Modal -->
+        <div class="modal-backdrop" id="modal-add-battery" aria-hidden="true">
+          <div class="modal" role="dialog" aria-labelledby="modal-add-title">
+            <div class="modal-head">
+              <h3 id="modal-add-title">添加电池</h3>
+              <button type="button" class="btn-icon" id="btn-cancel-add" title="关闭">×</button>
+            </div>
+            <form id="form-add-battery">
+              <div class="form-grid">
+                <label class="field">
+                  <span>电池名称</span>
+                  <input name="name" type="text" required placeholder="例如：实验室电芯 B1" />
+                </label>
+                <label class="field">
+                  <span>电池型号</span>
+                  <input name="model" type="text" required placeholder="例如：LG MJ1" />
+                </label>
+                <label class="field">
+                  <span>电池类型</span>
+                  <select name="type">
+                    <option>锂离子 18650</option>
+                    <option>锂离子 21700</option>
+                    <option>锂离子软包</option>
+                    <option>磷酸铁锂</option>
+                    <option>其他</option>
+                  </select>
+                </label>
+                <label class="field">
+                  <span>标称容量 (Ah)</span>
+                  <input name="nominal" type="number" step="0.01" min="0.1" required placeholder="2.50" />
+                </label>
+                <label class="field">
+                  <span>额定电压 (V)</span>
+                  <input name="voltage" type="number" step="0.1" min="1" required placeholder="3.6" />
+                </label>
+                <label class="field">
+                  <span>开始使用日期</span>
+                  <input name="startDate" type="date" />
+                </label>
+              </div>
+              <div class="modal-actions">
+                <button type="button" class="btn btn-outline" id="btn-cancel-add-2">取消</button>
+                <button type="submit" class="btn btn-primary">创建电池</button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- ========== 阶段3：数据上传 ========== -->
+        <section class="view" id="view-upload" data-title="数据上传" data-sub="上传循环级电池数据以进行分析">
+          <div class="page-toolbar">
+            <div>
+              <h2 class="section-title">数据上传</h2>
+              <p class="section-desc">支持 CSV / Excel（当前演示解析 CSV）。上传完成后进入数据分析，不占用首页。</p>
+            </div>
+            <button type="button" class="btn btn-outline" id="btn-download-template">下载示例数据模板</button>
+          </div>
+
+          <div class="alert-box mb-16" id="upload-alert">
+            将电池循环数据拖入下方区域，或点击选择文件。也可切换到手动录入。
+          </div>
+
+          <div class="panel mb-16">
+            <div class="panel-head">
+              <h3>关联电池</h3>
+              <span class="hint">数据将归属到所选电池档案</span>
+            </div>
+            <select id="upload-battery-select" class="select-block"></select>
+          </div>
+
+          <div class="upload-zone" id="upload-zone" tabindex="0" role="button" aria-label="选择或拖拽文件">
+            <input type="file" id="upload-file-input" accept=".csv,.xlsx,.xls,text/csv" hidden />
+            <div class="upload-icon">CSV</div>
+            <p class="upload-title">将电池数据拖拽到这里</p>
+            <p class="upload-hint">或点击选择文件 · 支持 CSV（推荐）/ Excel 文案占位</p>
+            <button type="button" class="btn btn-primary mt-12" id="btn-pick-file">选择文件</button>
+          </div>
+
+          <div class="upload-meta" id="upload-meta" hidden>
+            <div class="meta-item"><span class="k">文件名称</span><span class="v" id="meta-name">—</span></div>
+            <div class="meta-item"><span class="k">数据条数</span><span class="v" id="meta-rows">—</span></div>
+            <div class="meta-item"><span class="k">数据完整度</span><span class="v" id="meta-completeness">—</span></div>
+            <div class="meta-item"><span class="k">数据状态</span><span class="v" id="meta-status">—</span></div>
+          </div>
+
+          <div class="panel mb-16" id="upload-preview-panel" hidden>
+            <div class="panel-head">
+              <h3>数据预览</h3>
+              <span class="hint">前 8 行</span>
+            </div>
+            <div class="table-wrap">
+              <table class="data-table" id="upload-preview-table">
+                <thead></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="panel mb-16">
+            <div class="panel-head">
+              <h3>手动输入数据</h3>
+              <button type="button" class="btn btn-ghost btn-sm" id="btn-toggle-manual">展开 / 收起</button>
+            </div>
+            <div id="manual-entry" hidden>
+              <p class="section-desc mb-12">按行填写：Cycle | Capacity | Voltage | Current | Temperature</p>
+              <div class="table-wrap">
+                <table class="data-table" id="manual-table">
+                  <thead>
+                    <tr>
+                      <th>Cycle</th>
+                      <th>Capacity</th>
+                      <th>Voltage</th>
+                      <th>Current</th>
+                      <th>Temperature</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody id="manual-tbody"></tbody>
+                </table>
+              </div>
+              <div class="quick-actions mt-12">
+                <button type="button" class="btn btn-outline" id="btn-add-manual-row">＋ 添加数据</button>
+                <button type="button" class="btn btn-teal" id="btn-use-manual">使用手动数据</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="quick-actions">
+            <button type="button" class="btn btn-primary btn-lg-inline" id="btn-start-analysis" disabled>
+              开始数据分析
+            </button>
+          </div>
+        </section>
+
+        <!-- ========== 阶段3：数据分析 ========== -->
+        <section class="view" id="view-analysis" data-title="数据分析" data-sub="查看数据质量与特征摘要">
+          <div class="page-toolbar">
+            <div>
+              <h2 class="section-title">数据分析</h2>
+              <p class="section-desc" id="analysis-battery-line">请先在「数据上传」完成数据加载。</p>
+            </div>
+            <button type="button" class="btn btn-outline" data-goto="upload">返回上传</button>
+          </div>
+
+          <div id="analysis-empty" class="placeholder-page">
+            <h2>暂无分析数据</h2>
+            <p>请先上传或手动录入循环级数据，再点击「开始数据分析」。</p>
+            <button type="button" class="btn btn-primary mt-12" data-goto="upload">去上传数据</button>
+          </div>
+
+          <div id="analysis-content" hidden>
+            <div class="alert-box mb-16" id="analysis-gate">数据基本完整，可以进行预测。</div>
+
+            <div class="kpi-grid mb-16">
+              <article class="kpi-card">
+                <div class="kpi-label">完整度</div>
+                <div class="kpi-value teal" id="qa-completeness">—</div>
+                <div class="kpi-meta">字段非空比例</div>
+              </article>
+              <article class="kpi-card">
+                <div class="kpi-label">连续性</div>
+                <div class="kpi-value blue" id="qa-continuity">—</div>
+                <div class="kpi-meta">循环序号连贯程度</div>
+              </article>
+              <article class="kpi-card">
+                <div class="kpi-label">异常数据</div>
+                <div class="kpi-value amber" id="qa-anomalies">—</div>
+                <div class="kpi-meta">可疑尖峰 / 缺失跳变</div>
+              </article>
+              <article class="kpi-card">
+                <div class="kpi-label">分析状态</div>
+                <div class="kpi-value" id="qa-status" style="font-size:1.2rem;">—</div>
+                <div class="kpi-meta" id="qa-status-hint">—</div>
+              </article>
+            </div>
+
+            <div class="grid-2 mb-16">
+              <div class="panel">
+                <div class="panel-head">
+                  <h3>容量变化曲线</h3>
+                  <span class="hint">Capacity vs Cycle</span>
+                </div>
+                <div class="chart-wrap"><canvas id="chart-analysis-capacity"></canvas></div>
+              </div>
+              <div class="panel">
+                <div class="panel-head">
+                  <h3>SOH 变化曲线</h3>
+                  <span class="hint">SOH vs Cycle</span>
+                </div>
+                <div class="chart-wrap"><canvas id="chart-analysis-soh"></canvas></div>
+              </div>
+            </div>
+
+            <div class="grid-2 mb-16">
+              <div class="panel">
+                <div class="panel-head">
+                  <h3>温度分析</h3>
+                  <span class="hint">趋势与统计</span>
+                </div>
+                <div class="temp-stats mb-12">
+                  <div><span class="k">平均温度</span><span class="v" id="temp-avg">—</span></div>
+                  <div><span class="k">最高温度</span><span class="v" id="temp-max">—</span></div>
+                  <div><span class="k">最低温度</span><span class="v" id="temp-min">—</span></div>
+                </div>
+                <div class="chart-wrap short"><canvas id="chart-analysis-temp"></canvas></div>
+              </div>
+              <div class="panel">
+                <div class="panel-head"><h3>数据特征</h3></div>
+                <dl class="info-list" id="feature-list">
+                  <div><dt>平均容量衰减率</dt><dd id="feat-fade">—</dd></div>
+                  <div><dt>平均温度</dt><dd id="feat-temp">—</dd></div>
+                  <div><dt>平均充电电流</dt><dd id="feat-ichg">—</dd></div>
+                  <div><dt>平均放电电流</dt><dd id="feat-idchg">—</dd></div>
+                  <div><dt>最大温度</dt><dd id="feat-tmax">—</dd></div>
+                  <div><dt>样本循环跨度</dt><dd id="feat-span">—</dd></div>
+                </dl>
+              </div>
+            </div>
+
+            <div class="quick-actions">
+              <button type="button" class="btn btn-teal btn-lg-inline" id="btn-goto-prediction">
+                开始 AI 预测
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- ========== 阶段4：AI 预测 ========== -->
+        <section class="view" id="view-prediction" data-title="AI预测" data-sub="SOH 评估与 RUL 区间预测">
+          <div class="page-toolbar">
+            <div>
+              <h2 class="section-title">AI 剩余寿命预测</h2>
+              <p class="section-desc" id="pred-battery-line">基于当前关注电池与已分析数据，执行单次离线区间预测。</p>
+            </div>
+            <div class="quick-actions">
+              <button type="button" class="btn btn-outline" data-goto="analysis">返回分析</button>
+              <button type="button" class="btn btn-primary" id="btn-run-prediction">开始预测</button>
+            </div>
+          </div>
+
+          <div class="panel mb-16" id="pred-context">
+            <div class="panel-head"><h3>当前电池信息</h3></div>
+            <div class="pred-context-grid">
+              <div><span class="k">电池</span><span class="v" id="pred-ctx-name">—</span></div>
+              <div><span class="k">型号</span><span class="v" id="pred-ctx-model">—</span></div>
+              <div><span class="k">当前循环</span><span class="v" id="pred-ctx-cycle">—</span></div>
+              <div><span class="k">数据来源</span><span class="v" id="pred-ctx-source">—</span></div>
+            </div>
+          </div>
+
+          <!-- 预测流程 -->
+          <div class="panel mb-16" id="pred-pipeline-panel">
+            <div class="panel-head">
+              <h3>预测流程</h3>
+              <span class="hint" id="pred-pipeline-hint">点击「开始预测」启动</span>
+            </div>
+            <ol class="pred-pipeline" id="pred-pipeline">
+              <li data-step="0"><span class="step-dot">1</span>数据预处理</li>
+              <li data-step="1"><span class="step-dot">2</span>特征提取</li>
+              <li data-step="2"><span class="step-dot">3</span>模型计算</li>
+              <li data-step="3"><span class="step-dot">4</span>SOH 预测</li>
+              <li data-step="4"><span class="step-dot">5</span>RUL 区间预测</li>
+              <li data-step="5"><span class="step-dot">6</span>预测完成</li>
+            </ol>
+          </div>
+
+          <!-- 结果区（默认隐藏，完成后显示） -->
+          <div id="pred-results" hidden>
+            <div class="grid-2 mb-16">
+              <div class="panel soh-hero">
+                <div class="panel-head"><h3>当前 SOH</h3></div>
+                <div class="soh-big" id="pred-soh">—</div>
+                <div class="soh-sub">健康状态估计</div>
+              </div>
+              <div class="panel">
+                <div class="panel-head">
+                  <h3>预计剩余寿命（区间）</h3>
+                  <span class="hint">视觉重点</span>
+                </div>
+                <div class="pred-rul-headline">
+                  <span id="pred-rul-range">160–205</span>
+                  <span class="unit">cycles</span>
+                </div>
+                <div class="rul-interval mt-12">
+                  <div class="range-label">
+                    <span id="pred-bar-lower">160</span>
+                    <span>中心预测</span>
+                    <span id="pred-bar-upper">205</span>
+                  </div>
+                  <div class="bar">
+                    <span class="dot" id="pred-bar-dot" style="left:51%"></span>
+                  </div>
+                  <div class="center-label">● <span id="pred-bar-mid">183</span> cycles</div>
+                  <div class="tri">
+                    <div>
+                      <div class="k">预测下限</div>
+                      <div class="v" id="pred-tri-lower">—</div>
+                    </div>
+                    <div>
+                      <div class="k">中心预测</div>
+                      <div class="v" id="pred-tri-mid">—</div>
+                    </div>
+                    <div>
+                      <div class="k">预测上限</div>
+                      <div class="v" id="pred-tri-upper">—</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="pred-metrics mt-16">
+                  <div class="metric-pill">
+                    <div class="k">区间覆盖率</div>
+                    <div class="v" id="pred-coverage">94.2%</div>
+                  </div>
+                  <div class="metric-pill">
+                    <div class="k">区间宽度</div>
+                    <div class="v" id="pred-width">45 cycles</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 未来趋势：历史 + 区间带 + 失效阈值 -->
+            <div class="panel mb-16">
+              <div class="panel-head">
+                <h3>预测趋势</h3>
+                <span class="hint">历史 · 中心估计 · 上下界区间 · 失效阈值</span>
+              </div>
+              <div class="future-caps mb-12" id="future-caps"></div>
+              <div class="chart-wrap tall">
+                <canvas id="chart-pred-interval"></canvas>
+              </div>
+              <div class="legend-row">
+                <span><i class="legend-swatch hist"></i>历史观测</span>
+                <span><i class="legend-swatch pred"></i>中心预测</span>
+                <span><i class="legend-swatch band"></i>预测区间</span>
+                <span><i class="legend-swatch eol"></i>失效阈值 80%</span>
+              </div>
+              <p class="section-desc mt-12" id="pred-eol-note">
+                模型认为：当中心曲线接近失效阈值时，对应循环附近进入寿命终点风险区；决策时请优先参考下界。
+              </p>
+            </div>
+
+            <div class="panel">
+              <div class="panel-head"><h3>逐步区间明细</h3></div>
+              <div class="table-wrap">
+                <table class="data-table" id="pred-step-table">
+                  <thead>
+                    <tr>
+                      <th>预测循环</th>
+                      <th>下界</th>
+                      <th>中心估计</th>
+                      <th>上界</th>
+                      <th>区间宽度</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ========== 阶段5：异常监测 + AI 健康分析 ========== -->
+        <section class="view" id="view-anomaly" data-title="异常监测" data-sub="容量、温度与衰减异常">
+          <div class="page-toolbar">
+            <div>
+              <h2 class="section-title">异常监测</h2>
+              <p class="section-desc" id="anomaly-battery-line">基于当前关注电池的健康管理视图（模拟检测结果）。</p>
+            </div>
+            <button type="button" class="btn btn-outline" id="btn-refresh-anomaly">重新检测</button>
+          </div>
+
+          <div class="kpi-grid mb-16">
+            <article class="kpi-card">
+              <div class="kpi-label">最近检测</div>
+              <div class="kpi-value" id="anomaly-last-time" style="font-size:1.05rem;">—</div>
+              <div class="kpi-meta">本地示意检测</div>
+            </article>
+            <article class="kpi-card">
+              <div class="kpi-label">异常数量</div>
+              <div class="kpi-value amber" id="anomaly-count">—</div>
+              <div class="kpi-meta">当前关注项</div>
+            </article>
+            <article class="kpi-card">
+              <div class="kpi-label">最高等级</div>
+              <div class="kpi-value" id="anomaly-max-level" style="font-size:1.35rem;">—</div>
+              <div class="kpi-meta">无 / 轻微 / 中等 / 严重</div>
+            </article>
+            <article class="kpi-card">
+              <div class="kpi-label">总体状态</div>
+              <div class="kpi-value teal" id="anomaly-overall" style="font-size:1.35rem;">—</div>
+              <div class="kpi-meta" id="anomaly-overall-hint">—</div>
+            </article>
+          </div>
+
+          <div class="anomaly-summary mb-16" id="anomaly-level-cards">
+            <!-- 容量 / 温度 / 衰减 等级卡由 JS 填充 -->
+          </div>
+
+          <div class="panel mb-16">
+            <div class="panel-head">
+              <h3>异常详情</h3>
+              <span class="hint">点击卡片可展开说明</span>
+            </div>
+            <div class="anomaly-list" id="anomaly-detail-list"></div>
+          </div>
+
+          <!-- AI 健康分析：结构预留未来 LLM API -->
+          <div class="panel ai-health-panel" id="ai-health-panel" data-llm-slot="battery-health-insight">
+            <div class="panel-head">
+              <h3>AI 健康分析</h3>
+              <span class="hint">当前为写死示意文案 · 可替换为 LLM API</span>
+            </div>
+            <div class="ai-health-body">
+              <div class="ai-health-badge">基于当前电池上下文</div>
+              <p id="ai-health-text" class="ai-health-text">正在生成分析……</p>
+              <div class="ai-health-meta">
+                <span id="ai-health-source">数据来源：电池档案 + 示意检测</span>
+                <button type="button" class="btn btn-ghost btn-sm" id="btn-regen-ai-health">重新生成</button>
+              </div>
+            </div>
+            <!-- 未来接入示例：
+                 POST /api/llm/health-insight { batteryId, soh, cycle, anomalies }
+                 将返回文本写入 #ai-health-text
+            -->
+          </div>
+        </section>
+
+        <!-- ========== 阶段6：预测报告 ========== -->
+        <section class="view" id="view-reports" data-title="预测报告" data-sub="汇总并导出电池健康报告">
+          <div class="page-toolbar">
+            <div>
+              <h2 class="section-title">预测报告</h2>
+              <p class="section-desc">汇总当前关注电池的健康档案、区间预测与异常结论。</p>
+            </div>
+            <div class="quick-actions">
+              <button type="button" class="btn btn-primary" id="btn-generate-report">生成报告</button>
+              <button type="button" class="btn btn-outline" id="btn-export-pdf" title="将报告下载为 PDF">导出 PDF</button>
+            </div>
+          </div>
+
+          <div id="report-empty" class="placeholder-page">
+            <h2>尚未生成报告</h2>
+            <p>点击「生成报告」基于当前电池、最近预测与异常监测结果生成网页报告。</p>
+          </div>
+
+          <div id="report-doc" class="report-doc" hidden>
+            <header class="report-header">
+              <div>
+                <h2 id="report-title">电池健康预测报告</h2>
+                <p id="report-time">—</p>
+              </div>
+              <div class="report-badge">BatteryAI 演示报告</div>
+            </header>
+
+            <section class="report-section">
+              <h3>一、电池基本信息</h3>
+              <dl class="info-list" id="report-basic"></dl>
+            </section>
+            <section class="report-section">
+              <h3>二、当前 SOH</h3>
+              <p class="report-soh" id="report-soh">—</p>
+            </section>
+            <section class="report-section">
+              <h3>三、剩余寿命 RUL 区间</h3>
+              <div class="rul-interval" id="report-rul-block"></div>
+            </section>
+            <section class="report-section">
+              <h3>四、容量 / 健康衰减说明</h3>
+              <p id="report-trend-text">—</p>
+            </section>
+            <section class="report-section">
+              <h3>五、异常检测结果</h3>
+              <p id="report-anomaly-text">—</p>
+            </section>
+            <section class="report-section">
+              <h3>六、AI 健康分析</h3>
+              <p id="report-ai-text">—</p>
+            </section>
+            <section class="report-section">
+              <h3>七、模型信息</h3>
+              <dl class="info-list" id="report-model"></dl>
+            </section>
+          </div>
+        </section>
+
+        <!-- ========== 阶段6：历史记录 ========== -->
+        <section class="view" id="view-history" data-title="历史记录" data-sub="回顾过往预测结果">
+          <div class="page-toolbar">
+            <div>
+              <h2 class="section-title">历史记录</h2>
+              <p class="section-desc">查看过往 SOH 与 RUL 区间预测；新的 AI 预测会自动写入。</p>
+            </div>
+          </div>
+
+          <div class="panel mb-16">
+            <div class="panel-head">
+              <h3>RUL 中心随时间变化</h3>
+              <span class="hint">示意趋势</span>
+            </div>
+            <div class="chart-wrap short">
+              <canvas id="chart-history-rul"></canvas>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-head"><h3>预测记录表</h3></div>
+            <div class="table-wrap">
+              <table class="data-table" id="history-table">
+                <thead>
+                  <tr>
+                    <th>预测时间</th>
+                    <th>电池</th>
+                    <th>SOH</th>
+                    <th>RUL 下限</th>
+                    <th>RUL 中心</th>
+                    <th>RUL 上限</th>
+                    <th>模型</th>
+                    <th>状态</th>
+                  </tr>
+                </thead>
+                <tbody id="history-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ========== 阶段6：知识中心 ========== -->
+        <section class="view" id="view-knowledge" data-title="知识中心" data-sub="了解 SOH、RUL 与电池衰减">
+          <div class="page-toolbar">
+            <div>
+              <h2 class="section-title">知识中心</h2>
+              <p class="section-desc">锂电池健康管理常用概念，帮助理解平台中的指标与区间预测。</p>
+            </div>
+          </div>
+          <div class="knowledge-grid" id="knowledge-grid"></div>
+          <div class="panel mt-16" id="knowledge-article" hidden>
+            <div class="panel-head">
+              <h3 id="knowledge-article-title">—</h3>
+              <button type="button" class="btn btn-ghost btn-sm" id="btn-close-knowledge">关闭</button>
+            </div>
+            <div class="knowledge-body" id="knowledge-article-body"></div>
+          </div>
+        </section>
+
+        <!-- ========== 阶段6：AI 电池助手 ========== -->
+        <section class="view" id="view-assistant" data-title="AI电池助手" data-sub="结合你的电池数据答疑">
+          <div class="assistant-layout">
+            <aside class="assistant-side panel">
+              <h3>AI 电池助手</h3>
+              <p class="section-desc">回答会结合当前关注电池的 SOH、循环、RUL 区间与异常状态。</p>
+              <div class="assistant-ctx" id="assistant-ctx"></div>
+              <div class="quick-actions mt-16" style="flex-direction:column;align-items:stretch;">
+                <button type="button" class="btn btn-outline btn-sm assistant-suggest">为什么我的电池 SOH 下降这么快？</button>
+                <button type="button" class="btn btn-outline btn-sm assistant-suggest">我的 RUL 为什么是一个区间？</button>
+                <button type="button" class="btn btn-outline btn-sm assistant-suggest">什么是容量回升？</button>
+                <button type="button" class="btn btn-outline btn-sm assistant-suggest">如何理解我的预测结果？</button>
+              </div>
+            </aside>
+            <div class="assistant-chat panel">
+              <div class="chat-log" id="chat-log"></div>
+              <form class="chat-input-row" id="chat-form">
+                <input type="text" id="chat-input" placeholder="询问与当前电池相关的问题…" autocomplete="off" />
+                <button type="submit" class="btn btn-primary">发送</button>
+              </form>
+              <p class="chat-hint">当前为本地模拟回复 · 结构可接入云端大模型 API</p>
+            </div>
+          </div>
+        </section>
+
       </div>
-
-      <div class="table-wrap" style="margin-top:16px;">
-        <table class="data-table" id="result-table">
-          <thead>
-            <tr>
-              <th>预测循环</th>
-              <th>下界</th>
-              <th>中心估计</th>
-              <th>上界</th>
-              <th>区间宽度</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </section>
-
-  </main>
-
-  <footer class="footer">
-    锂电池区间预测系统 · 第二版 · CSV 离线输入 · 单次区间预测（非实时硬件监控）
-  </footer>
-
+    </div>
+  </div>
 </body>
 </html>
