@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>锂电池区间预测系统</title>
+  <link rel="stylesheet" href="css/theme.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
+  <script src="js/app.js" defer></script>
+</head>
+<body>
+
+  <header class="navbar">
+    <div class="navbar-brand">
+      <span class="brand-mark" aria-hidden="true">电</span>
+      <div>
+        <div>锂电池区间预测系统</div>
+        <p class="brand-sub">CSV 输入 · 单次预测 · 上下界区间输出</p>
+      </div>
+    </div>
+    <div class="navbar-actions">
+      <button type="button" class="btn btn-outline" id="btn-sample">下载示例 CSV</button>
+      <button type="button" class="btn btn-outline" id="btn-export" disabled>导出预测结果</button>
+    </div>
+  </header>
+
+  <main class="container">
+
+    <!-- 流程说明 -->
+    <ol class="steps">
+      <li class="step active" data-step="1"><span class="step-num">1</span>上传 CSV</li>
+      <li class="step" data-step="2"><span class="step-num">2</span>单次预测</li>
+      <li class="step" data-step="3"><span class="step-num">3</span>查看区间结果</li>
+    </ol>
+
+    <div class="alert-box" id="alert-box">
+      请上传循环级电池数据 CSV。本系统不做实时硬件采集，每次点击「开始区间预测」仅执行一次离线推理。
+    </div>
+
+    <!-- ========== 1. 数据输入 ========== -->
+    <section class="card upload-section">
+      <h2 class="section-header">数据输入</h2>
+      <p class="section-desc">
+        支持本地 CSV 文件。建议包含列：
+        <code>cycle</code>（循环次数）、
+        <code>voltage</code>（电压）、
+        <code>temperature</code>（温度）、
+        <code>capacity</code>（容量，可选）、
+        <code>soh</code>（健康状态，可选，0–1 或百分比）。
+      </p>
+
+      <div class="upload-zone" id="upload-zone" tabindex="0" role="button" aria-label="选择或拖拽 CSV 文件">
+        <input type="file" id="csv-input" accept=".csv,text/csv" hidden />
+        <div class="upload-icon" aria-hidden="true">CSV</div>
+        <p class="upload-title">点击选择，或将 CSV 拖拽到此处</p>
+        <p class="upload-hint">单文件上传 · 仅用于本次离线预测</p>
+      </div>
+
+      <div class="file-meta" id="file-meta" hidden>
+        <div class="meta-item"><span class="k">文件名</span><span class="v" id="file-name">—</span></div>
+        <div class="meta-item"><span class="k">数据行数</span><span class="v" id="file-rows">—</span></div>
+        <div class="meta-item"><span class="k">识别列</span><span class="v" id="file-cols">—</span></div>
+        <div class="meta-item"><span class="k">状态</span><span class="v" id="file-status">未预测</span></div>
+      </div>
+
+      <div class="predict-bar">
+        <div class="field">
+          <label for="target-select">预测目标</label>
+          <select id="target-select">
+            <option value="soh">健康状态 SoH（%）</option>
+            <option value="capacity">放电容量（Ah）</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="horizon-select">向前预测步数</label>
+          <select id="horizon-select">
+            <option value="10">后续 10 个循环</option>
+            <option value="20" selected>后续 20 个循环</option>
+            <option value="30">后续 30 个循环</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="level-select">区间置信水平（示意）</label>
+          <select id="level-select">
+            <option value="80">约 80% 区间</option>
+            <option value="90" selected>约 90% 区间</option>
+            <option value="95">约 95% 区间</option>
+          </select>
+        </div>
+        <button type="button" class="btn btn-primary btn-lg" id="btn-predict" disabled>
+          开始区间预测
+        </button>
+      </div>
+    </section>
+
+    <!-- ========== 2. 数据预览 ========== -->
+    <section class="card" id="preview-section" hidden>
+      <h2 class="section-header">数据预览</h2>
+      <p class="section-desc">仅展示前 8 行，确认列名与数值无误后再预测。</p>
+      <div class="table-wrap">
+        <table class="data-table" id="preview-table">
+          <thead></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ========== 3. 区间预测结果 ========== -->
+    <section class="card" id="result-section" hidden>
+      <h2 class="section-header">区间预测结果</h2>
+      <p class="section-desc">
+        输出为<strong>预测区间</strong>：下界、中心估计、上界。阴影带表示可能取值范围，而非单一确定值。
+      </p>
+
+      <div class="grid-3">
+        <article class="card result-card lower">
+          <div class="card-title">预测下界</div>
+          <div class="card-value" id="bound-lower">--</div>
+          <div class="card-hint" id="bound-lower-hint">区间下限</div>
+        </article>
+        <article class="card result-card mid">
+          <div class="card-title">中心估计</div>
+          <div class="card-value teal" id="bound-mid">--</div>
+          <div class="card-hint" id="bound-mid-hint">区间中心值</div>
+        </article>
+        <article class="card result-card upper">
+          <div class="card-title">预测上界</div>
+          <div class="card-value" id="bound-upper">--</div>
+          <div class="card-hint" id="bound-upper-hint">区间上限</div>
+        </article>
+      </div>
+
+      <div class="grid-2" style="margin-top:4px;">
+        <article class="card flat">
+          <div class="card-title">历史观测 + 未来区间预测</div>
+          <div class="chart-box tall"><canvas id="chart-interval" height="220"></canvas></div>
+        </article>
+        <article class="card flat">
+          <div class="card-title">本轮预测摘要</div>
+          <ul class="summary-list" id="summary-list">
+            <li>等待预测……</li>
+          </ul>
+          <div class="ai-box compact">
+            <h3>结果说明</h3>
+            <p id="result-note">区间宽度反映不确定性：历史噪声更大或预测越远，上下界通常越宽。</p>
+          </div>
+        </article>
+      </div>
+
+      <div class="table-wrap" style="margin-top:16px;">
+        <table class="data-table" id="result-table">
+          <thead>
+            <tr>
+              <th>预测循环</th>
+              <th>下界</th>
+              <th>中心估计</th>
+              <th>上界</th>
+              <th>区间宽度</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="footer">
+    锂电池区间预测系统 · 第二版 · CSV 离线输入 · 单次区间预测（非实时硬件监控）
+  </footer>
+
+</body>
+</html>
